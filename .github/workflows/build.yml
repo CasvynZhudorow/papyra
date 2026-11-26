@@ -3,6 +3,7 @@ name: build
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
@@ -89,3 +90,28 @@ jobs:
         with:
           name: papyra-android
           path: build/app/outputs/flutter-apk/*.apk
+
+  release:
+    needs: [windows, android]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: papyra-android
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: papyra-windows
+          path: dist/papyra-windows
+      - run: |
+          cd dist
+          zip -qr papyra-windows.zip papyra-windows
+          rm -rf papyra-windows
+          ls -l
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
