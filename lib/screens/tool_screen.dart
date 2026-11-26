@@ -47,15 +47,13 @@ class _ToolScreenState extends State<ToolScreen> {
 
   Future<void> _pick() async {
     final isImage = tool.id == 'img2pdf';
-    final res = await FilePicker.platform.pickFiles(
+    final res = await FilePickerPlatform.instance.pickFiles(
       type: isImage ? FileType.image : FileType.custom,
       allowedExtensions: isImage ? null : ['pdf'],
-      allowMultiple: tool.multiInput,
-      withData: false,
     );
     if (res == null) return;
     setState(() {
-      _inputs = res.paths.whereType<String>().toList();
+      _inputs = res.files.map((f) => f.path).whereType<String>().toList();
       _result = null;
       _error = null;
     });
