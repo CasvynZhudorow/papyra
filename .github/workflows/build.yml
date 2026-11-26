@@ -1,0 +1,83 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter --version
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  windows:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable Developer Mode (pdfrx needs symlink support)
+        run: reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" /t REG_DWORD /f /v "AllowDevelopmentWithoutDevLicense" /d "1"
+        shell: cmd
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate platform scaffolding
+        run: |
+          Copy-Item pubspec.yaml pubspec.backup.yaml
+          Copy-Item lib lib.backup -Recurse
+          Copy-Item test test.backup -Recurse
+          flutter create --platforms=windows --project-name papyra --org com.papyra .
+          Copy-Item pubspec.backup.yaml pubspec.yaml -Force
+          Remove-Item lib,test -Recurse -Force
+          Copy-Item lib.backup lib -Recurse
+          Copy-Item test.backup test -Recurse
+      - run: flutter pub get
+      - run: dart run flutter_launcher_icons
+      - run: flutter build windows --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: papyra-windows
+          path: build/windows/x64/runner/Release/**
+
+  android:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate platform scaffolding
+        run: |
+          cp pubspec.yaml pubspec.backup.yaml
+          cp -r lib lib.backup
+          cp -r test test.backup
+          flutter create --platforms=android --project-name papyra --org com.papyra .
+          cp pubspec.backup.yaml pubspec.yaml
+          rm -rf lib test
+          mv lib.backup lib
+          mv test.backup test
+          sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 24/' android/app/build.gradle.kts
+      - run: flutter pub get
+      - run: dart run flutter_launcher_icons
+      - run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: papyra-android
+          path: build/app/outputs/flutter-apk/*.apk

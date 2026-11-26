@@ -1,0 +1,15 @@
+.dart_tool/
+.packages
+build/
+pubspec.lock
+pubspec.backup.yaml
+*.iml
+.idea/
+.vscode/
+.DS_Store
+android/
+windows/
+macos/
+linux/
+ios/
+web/
