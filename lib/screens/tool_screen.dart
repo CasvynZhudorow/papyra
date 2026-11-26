@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:file_picker/src/file_picker_platform.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -47,7 +48,7 @@ class _ToolScreenState extends State<ToolScreen> {
 
   Future<void> _pick() async {
     final isImage = tool.id == 'img2pdf';
-    final res = await FilePicker.platform.pickFiles(
+    final res = await FilePickerPlatform.instance.pickFiles(
       type: isImage ? FileType.image : FileType.custom,
       allowedExtensions: isImage ? null : ['pdf'],
       allowMultiple: tool.multiInput,
