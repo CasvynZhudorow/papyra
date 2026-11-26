@@ -5,7 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:pdf/pdf.dart'
-    hide PdfDocument, PdfException, PdfPage, PdfPageRotation, PdfPasswordException;
+    hide PdfDocument, PdfException, PdfPage, PdfPageRotation;
 import 'package:pdf/widgets.dart' as pw;
 
 import '../core/page_ranges.dart';
@@ -390,7 +390,7 @@ Future<String> extractText(String path, {String? password}) async {
   try {
     for (final page in doc.pages) {
       final text = await page.loadText();
-      buffer.writeln(text.fullText);
+      buffer.writeln(text.fullText ?? '');
       buffer.writeln();
     }
   } finally {
