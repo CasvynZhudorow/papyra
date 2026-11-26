@@ -43,7 +43,6 @@ jobs:
           Copy-Item lib.backup lib -Recurse
           Copy-Item test.backup test -Recurse
       - run: flutter pub get
-      - run: dart run flutter_launcher_icons
       - run: flutter build windows --release
       - uses: actions/upload-artifact@v4
         with:
