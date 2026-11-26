@@ -390,7 +390,7 @@ Future<String> extractText(String path, {String? password}) async {
   try {
     for (final page in doc.pages) {
       final text = await page.loadText();
-      buffer.writeln(text.fullText ?? '');
+      buffer.writeln(text?.fullText ?? '');
       buffer.writeln();
     }
   } finally {
