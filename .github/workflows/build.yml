@@ -61,7 +61,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          cache: true
+          cache: false
       - name: Generate platform scaffolding
         run: |
           cp pubspec.yaml pubspec.backup.yaml
