@@ -1,5 +1,7 @@
 /// Local self-check for the pure-Dart helpers: `dart run tool/selftest.dart`.
 /// Exits non-zero on the first failed expectation.
+library;
+
 import 'dart:io';
 
 import 'package:papyra/core/page_ranges.dart';
@@ -8,7 +10,9 @@ int _checks = 0;
 
 bool listEq(List a, List b) {
   if (a.length != b.length) return false;
-  for (var i = 0; i < a.length; i++) if (a[i] != b[i]) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
   return true;
 }
 

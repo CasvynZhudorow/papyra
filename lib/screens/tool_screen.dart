@@ -29,7 +29,7 @@ class _ToolScreenState extends State<ToolScreen> {
   final _deleteCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _watermarkCtrl = TextEditingController(text: 'CONFIDENTIAL');
-  int _degrees = 90;
+  final int _degrees = 90;
   int _dpi = 110;
   int _quality = 62;
   String _imgFormat = 'png';
@@ -72,10 +72,10 @@ class _ToolScreenState extends State<ToolScreen> {
       _result = null;
       _progress = 'Memproses…';
     });
-    final onProgress = (int done, int total) {
+    void onProgress(int done, int total) {
       if (!mounted) return;
       setState(() => _progress = 'Memproses $done/$total');
-    };
+    }
     try {
       final op = await _dispatch(onProgress);
       if (!mounted) return;
@@ -314,15 +314,15 @@ class _ToolScreenState extends State<ToolScreen> {
       case 'compress':
         return [
           _slider('Resolusi', '$_dpi dpi', 72, 200, _dpi,
-              (v) => setState(() => _dpi = v)),
+              (v) => setState(() => _dpi = v.round())),
           _slider('Kualitas JPEG', '$_quality%', 30, 95, _quality,
-              (v) => setState(() => _quality = v)),
+              (v) => setState(() => _quality = v.round())),
           password,
         ];
       case 'pdf2img':
         return [
           _slider('Resolusi', '$_dpi dpi', 72, 220, _dpi,
-              (v) => setState(() => _dpi = v)),
+              (v) => setState(() => _dpi = v.round())),
           SegmentedButton<String>(
             segments: const [
               ButtonSegment(value: 'png', label: Text('PNG')),
@@ -343,7 +343,7 @@ class _ToolScreenState extends State<ToolScreen> {
             ),
           ),
           _slider('Resolusi', '$_dpi dpi', 72, 200, _dpi,
-              (v) => setState(() => _dpi = v)),
+              (v) => setState(() => _dpi = v.round())),
           password,
         ];
       case 'decrypt':
@@ -355,7 +355,7 @@ class _ToolScreenState extends State<ToolScreen> {
     }
   }
 
-  Widget _slider(String label, String value, double min, double max, double now,
+  Widget _slider(String label, String value, num min, num max, num now,
       ValueChanged<double> onChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -370,7 +370,11 @@ class _ToolScreenState extends State<ToolScreen> {
                     fontWeight: FontWeight.w600)),
           ],
         ),
-        Slider(value: now, min: min, max: max, onChanged: onChanged),
+        Slider(
+            value: now.toDouble(),
+            min: min.toDouble(),
+            max: max.toDouble(),
+            onChanged: onChanged),
       ],
     );
   }

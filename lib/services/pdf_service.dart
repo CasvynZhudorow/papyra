@@ -4,7 +4,8 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx_engine/pdfrx_engine.dart';
-import 'package:pdf/pdf.dart';
+import 'package:pdf/pdf.dart'
+    hide PdfDocument, PdfException, PdfPage, PdfPageRotation, PdfPasswordException;
 import 'package:pdf/widgets.dart' as pw;
 
 import '../core/page_ranges.dart';
@@ -42,9 +43,10 @@ Future<PdfDocument> _open(String path, {String? password}) async {
       passwordProvider:
           password == null ? null : createSimplePasswordProvider(password),
     );
-  } on PdfPasswordException {
-    throw const PdfOpError('Sandi salah atau PDF dilindungi sandi');
   } on PdfException catch (e) {
+    if (e is PdfPasswordException) {
+      throw const PdfOpError('Sandi salah atau PDF dilindungi sandi');
+    }
     throw PdfOpError('Gagal membuka PDF: $e');
   }
 }
@@ -237,6 +239,7 @@ Future<String> _rebuildFromImages(
 }) async {
   final doc = await _open(path, password: password);
   final out = pw.Document();
+  var written = 0;
   try {
     final total = doc.pages.length;
     for (var i = 1; i <= total; i++) {
@@ -275,9 +278,10 @@ Future<String> _rebuildFromImages(
           },
         ),
       );
+      written++;
       onProgress?.call(i, total);
     }
-    if (out.pages.isEmpty) throw const PdfOpError('Tidak ada halaman diproses');
+    if (written == 0) throw const PdfOpError('Tidak ada halaman diproses');
     final target = await _uniquePath(outName, 'pdf');
     await File(target).writeAsBytes(await out.save());
     return target;
@@ -354,6 +358,7 @@ Future<OpResult> decryptPdf(String path, String password) async {
 Future<OpResult> imagesToPdf(List<String> paths) async {
   if (paths.isEmpty) throw const PdfOpError('Pilih minimal satu gambar');
   final out = pw.Document();
+  var added = 0;
   for (final path in paths) {
     final bytes = await File(path).readAsBytes();
     final decoded = img.decodeImage(bytes);
@@ -370,8 +375,9 @@ Future<OpResult> imagesToPdf(List<String> paths) async {
         build: (context) => pw.Image(pwImage, fit: pw.BoxFit.fill),
       ),
     );
+    added++;
   }
-  if (out.pages.isEmpty) throw const PdfOpError('Tidak ada gambar yang terbaca');
+  if (added == 0) throw const PdfOpError('Tidak ada gambar yang terbaca');
   final target = await _uniquePath('dari_gambar', 'pdf');
   await File(target).writeAsBytes(await out.save());
   return OpResult(target, note: '${paths.length} gambar jadi PDF');

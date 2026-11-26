@@ -191,7 +191,7 @@ class _ToolCard extends StatelessWidget {
                 tool.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w650, fontSize: 15),
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
               ),
               const SizedBox(height: 3),
               Text(
