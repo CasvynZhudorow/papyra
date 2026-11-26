@@ -80,6 +80,7 @@ jobs:
           fi
           # Override flutter.compileSdkVersion for plugins
           echo "flutter.compileSdkVersion=36" > android/local.properties
+          echo "flutter.compileSdkVersion=36" > android/gradle.properties
       - run: flutter clean
       - run: flutter pub get
       - run: dart run flutter_launcher_icons
