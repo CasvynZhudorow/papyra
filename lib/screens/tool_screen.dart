@@ -53,7 +53,7 @@ class _ToolScreenState extends State<ToolScreen> {
     );
     if (res == null) return;
     setState(() {
-      _inputs = res.files.map((f) => f.path).whereType<String>().toList();
+      _inputs = res.map((f) => f.path).whereType<String>().toList();
       _result = null;
       _error = null;
     });
