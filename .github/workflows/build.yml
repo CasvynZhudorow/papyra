@@ -83,7 +83,7 @@ jobs:
           echo "flutter.compileSdkVersion=36" > android/local.properties
           echo "org.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=512m" >> android/gradle.properties
           # Add PDF intent filter to AndroidManifest.xml using Python for proper XML handling
-          python3 << 'EOF'
+          cat > /tmp/add_intent_filter.py << 'PYEOF'
 import xml.etree.ElementTree as ET
 manifest_path = 'android/app/src/main/AndroidManifest.xml'
 tree = ET.parse(manifest_path)
@@ -105,7 +105,8 @@ for activity in root.iter('activity'):
     data_file = ET.SubElement(intent_filter, 'data')
     data_file.set('{http://schemas.android.com/apk/res/android}scheme', 'file')
 tree.write(manifest_path, encoding='utf-8', xml_declaration=True)
-EOF
+PYEOF
+          python3 /tmp/add_intent_filter.py
       - run: flutter clean
       - run: flutter pub get
       - run: dart run flutter_launcher_icons
