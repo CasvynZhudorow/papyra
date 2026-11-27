@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:image/image.dart' as img;
 
 import '../models/tool_def.dart';
 import '../services/pdf_service.dart';
@@ -70,7 +69,7 @@ class _ToolScreenState extends State<ToolScreen> {
       type: isImage ? FileType.image : FileType.custom,
       allowedExtensions: isImage || isOpen ? null : ['pdf'],
     );
-    if (res == null) return;
+    if (res.isEmpty) return;
     setState(() {
       _inputs = res.map((f) => f.path).whereType<String>().toList();
       _result = null;
@@ -309,7 +308,7 @@ class _ToolScreenState extends State<ToolScreen> {
         prefixIcon: Icon(Icons.numbers),
       ),
     );
-    final password = TextField(
+    final passwordField = TextField(
       controller: _passwordCtrl,
       obscureText: tool.id != 'decrypt',
       decoration: InputDecoration(
@@ -317,13 +316,14 @@ class _ToolScreenState extends State<ToolScreen> {
         prefixIcon: const Icon(Icons.password),
       ),
     );
+    final password = _passwordCtrl.text.isEmpty ? null : _passwordCtrl.text;
 
     switch (tool.id) {
       case 'open':
         return [const Text('Pilih PDF lalu tekan Jalankan untuk membuka di penampil.')];
       case 'extract':
       case 'rotate':
-        return [range, password];
+        return [range, passwordField];
       case 'organize':
         return [
           range,
@@ -339,7 +339,7 @@ class _ToolScreenState extends State<ToolScreen> {
               style: TextStyle(
                   fontSize: 12,
                   color: Theme.of(context).colorScheme.onSurfaceVariant)),
-          password,
+          passwordField,
         ];
       case 'compress':
         return [
@@ -347,7 +347,7 @@ class _ToolScreenState extends State<ToolScreen> {
               (v) => setState(() => _dpi = v.round())),
           _slider('Kualitas JPEG', '$_quality%', 30, 95, _quality,
               (v) => setState(() => _quality = v.round())),
-          password,
+          passwordField,
         ];
       case 'pdf2img':
         return [
@@ -361,7 +361,7 @@ class _ToolScreenState extends State<ToolScreen> {
             selected: {_imgFormat},
             onSelectionChanged: (s) => setState(() => _imgFormat = s.first),
           ),
-          password,
+          passwordField,
         ];
       case 'watermark':
         return [
@@ -452,7 +452,7 @@ class _ToolScreenState extends State<ToolScreen> {
                 final res = await FilePickerPlatform.instance.pickFiles(
                   type: FileType.image,
                 );
-                if (res != null && res.isNotEmpty && res.single.path != null) {
+                if (res.isNotEmpty && res.single.path != null) {
                   final bytes = await File(res.single.path!).readAsBytes();
                   setState(() => _annotateImageBytes = Uint8List.fromList(bytes));
                 }

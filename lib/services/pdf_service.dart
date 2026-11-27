@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
@@ -408,9 +409,11 @@ Future<OpResult> annotatePdf(
                       pw.Positioned(
                         left: ann.x,
                         top: ann.y,
-                        width: ann.width,
-                        height: ann.height,
-                        child: pw.Image(annImage, fit: pw.BoxFit.contain),
+                        child: pw.SizedBox(
+                          width: ann.width,
+                          height: ann.height,
+                          child: pw.Image(annImage, fit: pw.BoxFit.contain),
+                        ),
                       ),
                     );
                   }
@@ -466,9 +469,11 @@ Future<OpResult> redactPdf(
                 pw.Positioned(
                   left: area.x,
                   top: area.y,
-                  width: area.width,
-                  height: area.height,
-                  child: pw.Container(color: PdfColors.black),
+                  child: pw.SizedBox(
+                    width: area.width,
+                    height: area.height,
+                    child: pw.Container(color: PdfColors.black),
+                  ),
                 ),
               );
             }

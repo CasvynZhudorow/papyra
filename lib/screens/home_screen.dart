@@ -255,7 +255,7 @@ class _OpenPdfScreenState extends State<_OpenPdfScreen> {
         type: FileType.custom,
         allowedExtensions: ['pdf'],
       );
-      if (res != null && res.isNotEmpty && res.single.path != null) {
+      if (res.isNotEmpty && res.single.path != null) {
         if (!mounted) return;
         Navigator.of(context).push(
           MaterialPageRoute(
