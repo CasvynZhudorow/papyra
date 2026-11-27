@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -374,18 +373,18 @@ class _ToolScreenState extends State<ToolScreen> {
           ),
           _slider('Resolusi', '$_dpi dpi', 72, 200, _dpi,
               (v) => setState(() => _dpi = v.round())),
-          password,
+          passwordField,
         ];
       case 'annotate':
         return _annotateOptions(context, password);
       case 'redact':
         return _redactOptions(context, password);
       case 'decrypt':
-        return [password];
+        return [passwordField];
       case 'metadata':
-        return [password];
+        return [passwordField];
       default:
-        return [password];
+        return [passwordField];
     }
   }
 
