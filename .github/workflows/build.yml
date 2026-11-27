@@ -82,6 +82,8 @@ jobs:
           # Override flutter.compileSdkVersion for plugins
           echo "flutter.compileSdkVersion=36" > android/local.properties
           echo "org.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=512m" >> android/gradle.properties
+          # Add PDF intent filter to AndroidManifest.xml
+          sed -i '/<activity/a\            <intent-filter>\n                <action android:name="android.intent.action.VIEW" />\n                <category android:name="android.intent.category.DEFAULT" />\n                <category android:name="android.intent.category.BROWSABLE" />\n                <data android:mimeType="application/pdf" />\n                <data android:scheme="content" />\n                <data android:scheme="file" />\n            </intent-filter>' android/app/src/main/AndroidManifest.xml
       - run: flutter clean
       - run: flutter pub get
       - run: dart run flutter_launcher_icons

@@ -11,10 +11,15 @@ responsif dari ponsel sampai desktop.
 
 | Kategori | Alat |
 |---|---|
+| Buka | Buka PDF (penampil lengkap, zoom, navigasi halaman) |
 | Rapikan | Gabung PDF, Ambil Halaman, Atur Halaman (putar/hapus), Putar Halaman |
 | Konversi | Kompres PDF, PDF → Gambar (PNG/JPG), Gambar → PDF |
-| Edit | Watermark teks transparan |
+| Edit | Watermark teks, Teks & Gambar (anotasi), Coret/Redact |
 | Aman | Buka Kunci PDF (hapus sandi), Info Dokumen |
+
+## Buka PDF dari aplikasi lain (Android)
+
+Papyra mendaftar sebagai pemegang file PDF. Buka file PDF dari Files, Gmail, Drive, WhatsApp, dll → pilih **Papyra** → file terbuka langsung di penampil.
 
 ## Build
 

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../models/tool_def.dart';
 import '../theme.dart';
 import 'tool_screen.dart';
+import 'viewer_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -162,9 +164,19 @@ class _ToolCard extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => ToolScreen(tool: tool)),
-        ),
+        onTap: () {
+          if (tool.isOpener) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const _OpenPdfScreen(),
+              ),
+            );
+          } else {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => ToolScreen(tool: tool)),
+            );
+          }
+        },
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -221,6 +233,86 @@ class _Footer extends StatelessWidget {
         textAlign: TextAlign.center,
         style: TextStyle(
             fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+    );
+  }
+}
+
+class _OpenPdfScreen extends StatefulWidget {
+  const _OpenPdfScreen();
+
+  @override
+  State<_OpenPdfScreen> createState() => _OpenPdfScreenState();
+}
+
+class _OpenPdfScreenState extends State<_OpenPdfScreen> {
+  String? _selectedPath;
+  bool _picking = false;
+
+  Future<void> _pickAndOpen() async {
+    setState(() => _picking = true);
+    try {
+      final res = await FilePickerPlatform.instance.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
+      if (res != null && res.files.single.path != null) {
+        if (!mounted) return;
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ViewerScreen(path: res.files.single.path!),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _picking = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Buka PDF')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.menu_book_outlined, size: 80, color: scheme.primary),
+              const SizedBox(height: 24),
+              Text(
+                'Buka File PDF',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Pilih file PDF dari perangkat untuk dibuka di penampil.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: scheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 32),
+              FilledButton.icon(
+                onPressed: _picking ? null : _pickAndOpen,
+                icon: _picking
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.folder_open),
+                label: Text(_picking ? 'Memilih...' : 'Pilih PDF'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  textStyle: const TextStyle(fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

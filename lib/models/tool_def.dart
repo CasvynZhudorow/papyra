@@ -13,6 +13,7 @@ class ToolDef {
     required this.category,
     this.multiInput = false,
     this.needsPageList = false,
+    this.isOpener = false,
   });
 
   final String id;
@@ -22,9 +23,18 @@ class ToolDef {
   final ToolCategory category;
   final bool multiInput;
   final bool needsPageList;
+  final bool isOpener;
 }
 
 const toolCatalog = <ToolDef>[
+  ToolDef(
+    id: 'open',
+    title: 'Buka PDF',
+    subtitle: 'Buka & lihat file PDF dari perangkat',
+    icon: Icons.menu_book_outlined,
+    category: ToolCategory.organize,
+    isOpener: true,
+  ),
   ToolDef(
     id: 'merge',
     title: 'Gabung PDF',
@@ -84,6 +94,20 @@ const toolCatalog = <ToolDef>[
     title: 'Watermark',
     subtitle: 'Tulisan transparan di semua halaman',
     icon: Icons.branding_watermark,
+    category: ToolCategory.edit,
+  ),
+  ToolDef(
+    id: 'annotate',
+    title: 'Teks & Gambar',
+    subtitle: 'Tambah teks, gambar, tanda tangan',
+    icon: Icons.edit_note,
+    category: ToolCategory.edit,
+  ),
+  ToolDef(
+    id: 'redact',
+    title: 'Coret (Redact)',
+    subtitle: 'Sembunyikan teks sensitif permanen',
+    icon: Icons.content_copy_off,
     category: ToolCategory.edit,
   ),
   ToolDef(

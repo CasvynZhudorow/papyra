@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image/image.dart' as img;
 
 import '../models/tool_def.dart';
 import '../services/pdf_service.dart';
@@ -34,6 +36,23 @@ class _ToolScreenState extends State<ToolScreen> {
   int _quality = 62;
   String _imgFormat = 'png';
 
+  // annotate tool state
+  final List<AnnotationItem> _annotations = [];
+  final _annotateTextCtrl = TextEditingController();
+  double _annotateX = 100;
+  double _annotateY = 100;
+  double _annotateFontSize = 18;
+  int _annotateColor = 0xFF000000;
+  Uint8List? _annotateImageBytes;
+  final List<Offset> _freehandPoints = [];
+
+  // redact tool state
+  final List<RedactionArea> _redactions = [];
+  double _redactX = 100;
+  double _redactY = 100;
+  double _redactWidth = 200;
+  double _redactHeight = 50;
+
   ToolDef get tool => widget.tool;
 
   @override
@@ -47,9 +66,10 @@ class _ToolScreenState extends State<ToolScreen> {
 
   Future<void> _pick() async {
     final isImage = tool.id == 'img2pdf';
+    final isOpen = tool.id == 'open';
     final res = await FilePickerPlatform.instance.pickFiles(
       type: isImage ? FileType.image : FileType.custom,
-      allowedExtensions: isImage ? null : ['pdf'],
+      allowedExtensions: isImage || isOpen ? null : ['pdf'],
     );
     if (res == null) return;
     setState(() {
@@ -93,6 +113,8 @@ class _ToolScreenState extends State<ToolScreen> {
   Future<OpResult> _dispatch(void Function(int, int)? onProgress) {
     final password = _passwordCtrl.text.isEmpty ? null : _passwordCtrl.text;
     switch (tool.id) {
+      case 'open':
+        return OpResult(_inputs.first);
       case 'merge':
         return mergePdfs(_inputs, password: password);
       case 'extract':
@@ -118,6 +140,12 @@ class _ToolScreenState extends State<ToolScreen> {
       case 'watermark':
         return watermarkPdf(_inputs.first, _watermarkCtrl.text,
             dpi: _dpi, password: password, onProgress: onProgress);
+      case 'annotate':
+        return annotatePdf(_inputs.first,
+            annotations: _annotations, dpi: _dpi, quality: _quality, password: password, onProgress: onProgress);
+      case 'redact':
+        return redactPdf(_inputs.first,
+            areas: _redactions, dpi: _dpi, quality: _quality, password: password, onProgress: onProgress);
       case 'decrypt':
         return decryptPdf(_inputs.first, _passwordCtrl.text);
       case 'metadata':
@@ -199,6 +227,7 @@ class _ToolScreenState extends State<ToolScreen> {
 
   Widget _dropZone(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isOpen = tool.id == 'open';
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: _pick,
@@ -219,7 +248,9 @@ class _ToolScreenState extends State<ToolScreen> {
                   ? 'Pilih gambar'
                   : tool.multiInput
                       ? 'Pilih beberapa PDF'
-                      : 'Pilih satu PDF',
+                      : isOpen
+                          ? 'Pilih PDF untuk dibuka'
+                          : 'Pilih satu PDF',
               style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
             ),
             const SizedBox(height: 4),
@@ -289,6 +320,8 @@ class _ToolScreenState extends State<ToolScreen> {
     );
 
     switch (tool.id) {
+      case 'open':
+        return [const Text('Pilih PDF lalu tekan Jalankan untuk membuka di penampil.')];
       case 'extract':
       case 'rotate':
         return [range, password];
@@ -344,6 +377,10 @@ class _ToolScreenState extends State<ToolScreen> {
               (v) => setState(() => _dpi = v.round())),
           password,
         ];
+      case 'annotate':
+        return _annotateOptions(context);
+      case 'redact':
+        return _redactOptions(context);
       case 'decrypt':
         return [password];
       case 'metadata':
@@ -375,6 +412,141 @@ class _ToolScreenState extends State<ToolScreen> {
             onChanged: onChanged),
       ],
     );
+  }
+
+  List<Widget> _annotateOptions(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return [
+      SegmentedButton<AnnotationType>(
+        segments: const [
+          ButtonSegment(
+              value: AnnotationType.text,
+              label: Text('Teks'),
+              icon: Icon(Icons.text_fields)),
+          ButtonSegment(
+              value: AnnotationType.image,
+              label: Text('Gambar'),
+              icon: Icon(Icons.image)),
+          ButtonSegment(
+              value: AnnotationType.freehand,
+              label: Text('Garis'),
+              icon: Icon(Icons.brush)),
+        ],
+        selected: {AnnotationType.text},
+        onSelectionChanged: (s) {},
+      ),
+      const SizedBox(height: 12),
+      TextField(
+        controller: _annotateTextCtrl,
+        decoration: const InputDecoration(
+          labelText: 'Teks',
+          prefixIcon: Icon(Icons.text_fields),
+        ),
+      ),
+      _slider('Ukuran font', '$_annotateFontSize', 8, 72, _annotateFontSize,
+          (v) => setState(() => _annotateFontSize = v)),
+      _slider('Posisi X', '${_annotateX.toInt()}', 0, 800, _annotateX,
+          (v) => setState(() => _annotateX = v)),
+      _slider('Posisi Y', '${_annotateY.toInt()}', 0, 1100, _annotateY,
+          (v) => setState(() => _annotateY = v)),
+      Row(
+        children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                final res = await FilePickerPlatform.instance.pickFiles(
+                  type: FileType.image,
+                );
+                if (res != null && res.files.single.path != null) {
+                  final bytes = await File(res.files.single.path!).readAsBytes();
+                  setState(() => _annotateImageBytes = Uint8List.fromList(bytes));
+                }
+              },
+              icon: const Icon(Icons.add_photo_alternate),
+              label: Text(_annotateImageBytes == null ? 'Pilih gambar' : 'Gambar dipilih'),
+            ),
+          ),
+        ],
+      ),
+      if (_annotations.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        Text('Anotasi yang ditambahkan: ${_annotations.length}',
+            style: TextStyle(color: scheme.onSurfaceVariant)),
+      ],
+      const SizedBox(height: 12),
+      FilledButton.icon(
+        onPressed: () {
+          if (_annotateTextCtrl.text.isEmpty && _annotateImageBytes == null && _freehandPoints.isEmpty) return;
+          setState(() {
+            _annotations.add(AnnotationItem(
+              page: 1,
+              type: _annotateTextCtrl.text.isNotEmpty ? AnnotationType.text :
+                  _annotateImageBytes != null ? AnnotationType.image : AnnotationType.freehand,
+              x: _annotateX,
+              y: _annotateY,
+              text: _annotateTextCtrl.text.isNotEmpty ? _annotateTextCtrl.text : null,
+              fontSize: _annotateFontSize,
+              color: _annotateColor,
+              imageBytes: _annotateImageBytes,
+              width: _annotateImageBytes != null ? 200 : null,
+              height: _annotateImageBytes != null ? 200 : null,
+              points: _freehandPoints.isNotEmpty ? List.from(_freehandPoints) : null,
+              strokeWidth: 2.0,
+            ));
+            _annotateTextCtrl.clear();
+            _annotateImageBytes = null;
+            _freehandPoints.clear();
+          });
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('Tambah anotasi'),
+      ),
+      _slider('Resolusi', '$_dpi dpi', 72, 200, _dpi,
+          (v) => setState(() => _dpi = v.round())),
+      _slider('Kualitas JPEG', '$_quality%', 30, 95, _quality,
+          (v) => setState(() => _quality = v.round())),
+      password,
+    ];
+  }
+
+  List<Widget> _redactOptions(BuildContext context) {
+    return [
+      Text('Tambah area redaction (kotak hitam permanen):',
+          style: TextStyle(fontWeight: FontWeight.w600)),
+      _slider('Posisi X', '${_redactX.toInt()}', 0, 800, _redactX,
+          (v) => setState(() => _redactX = v)),
+      _slider('Posisi Y', '${_redactY.toInt()}', 0, 1100, _redactY,
+          (v) => setState(() => _redactY = v)),
+      _slider('Lebar', '${_redactWidth.toInt()}', 10, 600, _redactWidth,
+          (v) => setState(() => _redactWidth = v)),
+      _slider('Tinggi', '${_redactHeight.toInt()}', 10, 400, _redactHeight,
+          (v) => setState(() => _redactHeight = v)),
+      if (_redactions.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        Text('Area redaction: ${_redactions.length}'),
+      ],
+      const SizedBox(height: 12),
+      FilledButton.icon(
+        onPressed: () {
+          setState(() {
+            _redactions.add(RedactionArea(
+              page: 1,
+              x: _redactX,
+              y: _redactY,
+              width: _redactWidth,
+              height: _redactHeight,
+            ));
+          });
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('Tambah area redaction'),
+      ),
+      _slider('Resolusi', '$_dpi dpi', 72, 200, _dpi,
+          (v) => setState(() => _dpi = v.round())),
+      _slider('Kualitas JPEG', '$_quality%', 30, 95, _quality,
+          (v) => setState(() => _quality = v.round())),
+      password,
+    ];
   }
 
   Widget _banner(String text, Color color, IconData icon) {

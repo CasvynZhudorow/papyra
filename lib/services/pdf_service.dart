@@ -354,6 +354,152 @@ Future<OpResult> decryptPdf(String path, String password) async {
   }
 }
 
+/// Add text and image annotations to PDF pages (render + rebuild approach).
+Future<OpResult> annotatePdf(
+  String path, {
+  required List<AnnotationItem> annotations,
+  int dpi = 110,
+  int quality = 80,
+  String? password,
+  void Function(int done, int total)? onProgress,
+}) async {
+  final doc = await _open(path, password: password);
+  final out = pw.Document();
+  try {
+    final total = doc.pages.length;
+    for (var i = 1; i <= total; i++) {
+      final page = doc.pages[i - 1];
+      final image = await page.render(
+        fullWidth: page.width * (dpi / 72.0),
+        fullHeight: page.height * (dpi / 72.0),
+      );
+      if (image == null) continue;
+      final bytes = img.encodeJpg(image.createImageNF(), quality: quality);
+      image.dispose();
+      final pwImage = pw.MemoryImage(bytes);
+      final pageAnnotations = annotations.where((a) => a.page == i).toList();
+      out.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat(page.width, page.height, marginAll: 0),
+          build: (context) {
+            final children = <pw.Widget>[
+              pw.Image(pwImage, fit: pw.BoxFit.fill),
+            ];
+            for (final ann in pageAnnotations) {
+              switch (ann.type) {
+                case AnnotationType.text:
+                  children.add(
+                    pw.Positioned(
+                      left: ann.x,
+                      top: ann.y,
+                      child: pw.Text(
+                        ann.text ?? '',
+                        style: pw.TextStyle(
+                          fontSize: ann.fontSize ?? 14,
+                          color: PdfColor.fromInt(ann.color ?? 0xFF000000),
+                        ),
+                      ),
+                    ),
+                  );
+                case AnnotationType.image:
+                  if (ann.imageBytes != null) {
+                    final annImage = pw.MemoryImage(ann.imageBytes!);
+                    children.add(
+                      pw.Positioned(
+                        left: ann.x,
+                        top: ann.y,
+                        width: ann.width,
+                        height: ann.height,
+                        child: pw.Image(annImage, fit: pw.BoxFit.contain),
+                      ),
+                    );
+                  }
+                case AnnotationType.freehand:
+                  if (ann.points != null && ann.points!.isNotEmpty) {
+                    children.add(
+                      pw.Positioned.fill(
+                        child: pw.CustomPaint(
+                          painter: _FreehandPainter(
+                            points: ann.points!,
+                            color: ann.color ?? 0xFF000000,
+                            strokeWidth: ann.strokeWidth ?? 2.0,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+              }
+            }
+            return pw.Stack(children: children);
+          },
+        ),
+      );
+      onProgress?.call(i, total);
+    }
+    final target = await _uniquePath('anotasi', 'pdf');
+    await File(target).writeAsBytes(await out.save());
+    return OpResult(target, note: 'Anotasi diterapkan ke $total halaman');
+  } finally {
+    await doc.dispose();
+  }
+}
+
+/// Permanent redaction: render pages with black boxes over specified areas.
+Future<OpResult> redactPdf(
+  String path, {
+  required List<RedactionArea> areas,
+  int dpi = 110,
+  int quality = 80,
+  String? password,
+  void Function(int done, int total)? onProgress,
+}) async {
+  final doc = await _open(path, password: password);
+  final out = pw.Document();
+  try {
+    final total = doc.pages.length;
+    for (var i = 1; i <= total; i++) {
+      final page = doc.pages[i - 1];
+      final image = await page.render(
+        fullWidth: page.width * (dpi / 72.0),
+        fullHeight: page.height * (dpi / 72.0),
+      );
+      if (image == null) continue;
+      final bytes = img.encodeJpg(image.createImageNF(), quality: quality);
+      image.dispose();
+      final pwImage = pw.MemoryImage(bytes);
+      final pageAreas = areas.where((a) => a.page == i).toList();
+      out.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat(page.width, page.height, marginAll: 0),
+          build: (context) {
+            final children = <pw.Widget>[
+              pw.Image(pwImage, fit: pw.BoxFit.fill),
+            ];
+            for (final area in pageAreas) {
+              children.add(
+                pw.Positioned(
+                  left: area.x,
+                  top: area.y,
+                  width: area.width,
+                  height: area.height,
+                  child: pw.Container(color: PdfColors.black),
+                ),
+              );
+            }
+            return pw.Stack(children: children);
+          },
+        ),
+      );
+      onProgress?.call(i, total);
+    }
+    final target = await _uniquePath('redact', 'pdf');
+    await File(target).writeAsBytes(await out.save());
+    return OpResult(target, note: 'Redaksi diterapkan ke $total halaman');
+  } finally {
+    await doc.dispose();
+  }
+}
+
 /// Build a PDF out of images.
 Future<OpResult> imagesToPdf(List<String> paths) async {
   if (paths.isEmpty) throw const PdfOpError('Pilih minimal satu gambar');
@@ -397,4 +543,92 @@ Future<String> extractText(String path, {String? password}) async {
     await doc.dispose();
   }
   return buffer.toString();
+}
+
+/// Annotation types for PDF editing.
+enum AnnotationType { text, image, freehand }
+
+/// Represents an annotation item to be placed on a PDF page.
+class AnnotationItem {
+  const AnnotationItem({
+    required this.page,
+    required this.type,
+    required this.x,
+    required this.y,
+    this.text,
+    this.fontSize,
+    this.color,
+    this.imageBytes,
+    this.width,
+    this.height,
+    this.points,
+    this.strokeWidth,
+  });
+
+  final int page; // 1-based page number
+  final AnnotationType type;
+  final double x; // position in PDF points (1/72 inch)
+  final double y;
+  final String? text;
+  final double? fontSize;
+  final int? color; // ARGB int
+  final List<int>? imageBytes;
+  final double? width;
+  final double? height;
+  final List<Offset>? points; // for freehand drawing
+  final double? strokeWidth;
+}
+
+/// Represents a redaction area (black box) on a PDF page.
+class RedactionArea {
+  const RedactionArea({
+    required this.page,
+    required this.x,
+    required this.y,
+    required this.width,
+    required this.height,
+  });
+
+  final int page; // 1-based page number
+  final double x;
+  final double y;
+  final double width;
+  final double height;
+}
+
+/// Custom painter for freehand drawing.
+class _FreehandPainter extends pw.CustomPainter {
+  _FreehandPainter({
+    required this.points,
+    required this.color,
+    required this.strokeWidth,
+  });
+
+  final List<Offset> points;
+  final int color;
+  final double strokeWidth;
+
+  @override
+  void paint(pw.Canvas canvas, pw.Size size) {
+    if (points.length < 2) return;
+    final paint = pw.Paint()
+      ..color = PdfColor.fromInt(color)
+      ..strokeWidth = strokeWidth
+      ..style = pw.PaintingStyle.stroke
+      ..strokeCap = pw.StrokeCap.round
+      ..strokeJoin = pw.StrokeJoin.round;
+
+    final path = pw.Path();
+    path.moveTo(points.first.dx, points.first.dy);
+    for (var i = 1; i < points.length; i++) {
+      path.lineTo(points[i].dx, points[i].dy);
+    }
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _FreehandPainter oldDelegate) =>
+      oldDelegate.points != points ||
+      oldDelegate.color != color ||
+      oldDelegate.strokeWidth != strokeWidth;
 }
