@@ -403,7 +403,7 @@ Future<OpResult> annotatePdf(
                   );
                 case AnnotationType.image:
                   if (ann.imageBytes != null) {
-                    final annImage = pw.MemoryImage(ann.imageBytes!);
+                    final annImage = pw.MemoryImage(Uint8List.fromList(ann.imageBytes!));
                     children.add(
                       pw.Positioned(
                         left: ann.x,
@@ -411,20 +411,6 @@ Future<OpResult> annotatePdf(
                         width: ann.width,
                         height: ann.height,
                         child: pw.Image(annImage, fit: pw.BoxFit.contain),
-                      ),
-                    );
-                  }
-                case AnnotationType.freehand:
-                  if (ann.points != null && ann.points!.isNotEmpty) {
-                    children.add(
-                      pw.Positioned.fill(
-                        child: pw.CustomPaint(
-                          painter: _FreehandPainter(
-                            points: ann.points!,
-                            color: ann.color ?? 0xFF000000,
-                            strokeWidth: ann.strokeWidth ?? 2.0,
-                          ),
-                        ),
                       ),
                     );
                   }
@@ -546,7 +532,7 @@ Future<String> extractText(String path, {String? password}) async {
 }
 
 /// Annotation types for PDF editing.
-enum AnnotationType { text, image, freehand }
+enum AnnotationType { text, image }
 
 /// Represents an annotation item to be placed on a PDF page.
 class AnnotationItem {
@@ -561,8 +547,6 @@ class AnnotationItem {
     this.imageBytes,
     this.width,
     this.height,
-    this.points,
-    this.strokeWidth,
   });
 
   final int page; // 1-based page number
@@ -575,8 +559,6 @@ class AnnotationItem {
   final List<int>? imageBytes;
   final double? width;
   final double? height;
-  final List<Offset>? points; // for freehand drawing
-  final double? strokeWidth;
 }
 
 /// Represents a redaction area (black box) on a PDF page.
@@ -594,41 +576,4 @@ class RedactionArea {
   final double y;
   final double width;
   final double height;
-}
-
-/// Custom painter for freehand drawing.
-class _FreehandPainter extends pw.CustomPainter {
-  _FreehandPainter({
-    required this.points,
-    required this.color,
-    required this.strokeWidth,
-  });
-
-  final List<Offset> points;
-  final int color;
-  final double strokeWidth;
-
-  @override
-  void paint(pw.Canvas canvas, pw.Size size) {
-    if (points.length < 2) return;
-    final paint = pw.Paint()
-      ..color = PdfColor.fromInt(color)
-      ..strokeWidth = strokeWidth
-      ..style = pw.PaintingStyle.stroke
-      ..strokeCap = pw.StrokeCap.round
-      ..strokeJoin = pw.StrokeJoin.round;
-
-    final path = pw.Path();
-    path.moveTo(points.first.dx, points.first.dy);
-    for (var i = 1; i < points.length; i++) {
-      path.lineTo(points[i].dx, points[i].dy);
-    }
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _FreehandPainter oldDelegate) =>
-      oldDelegate.points != points ||
-      oldDelegate.color != color ||
-      oldDelegate.strokeWidth != strokeWidth;
 }

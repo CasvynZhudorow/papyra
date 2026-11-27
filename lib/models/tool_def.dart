@@ -107,7 +107,7 @@ const toolCatalog = <ToolDef>[
     id: 'redact',
     title: 'Coret (Redact)',
     subtitle: 'Sembunyikan teks sensitif permanen',
-    icon: Icons.content_copy_off,
+    icon: Icons.remove_red_eye_outlined,
     category: ToolCategory.edit,
   ),
   ToolDef(

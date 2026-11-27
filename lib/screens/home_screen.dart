@@ -246,7 +246,6 @@ class _OpenPdfScreen extends StatefulWidget {
 }
 
 class _OpenPdfScreenState extends State<_OpenPdfScreen> {
-  String? _selectedPath;
   bool _picking = false;
 
   Future<void> _pickAndOpen() async {
@@ -256,11 +255,11 @@ class _OpenPdfScreenState extends State<_OpenPdfScreen> {
         type: FileType.custom,
         allowedExtensions: ['pdf'],
       );
-      if (res != null && res.files.single.path != null) {
+      if (res != null && res.isNotEmpty && res.single.path != null) {
         if (!mounted) return;
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => ViewerScreen(path: res.files.single.path!),
+            builder: (_) => ViewerScreen(path: res.single.path!),
           ),
         );
       }

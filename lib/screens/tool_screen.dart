@@ -44,7 +44,6 @@ class _ToolScreenState extends State<ToolScreen> {
   double _annotateFontSize = 18;
   int _annotateColor = 0xFF000000;
   Uint8List? _annotateImageBytes;
-  final List<Offset> _freehandPoints = [];
 
   // redact tool state
   final List<RedactionArea> _redactions = [];
@@ -114,7 +113,7 @@ class _ToolScreenState extends State<ToolScreen> {
     final password = _passwordCtrl.text.isEmpty ? null : _passwordCtrl.text;
     switch (tool.id) {
       case 'open':
-        return OpResult(_inputs.first);
+        return Future.value(OpResult(_inputs.first));
       case 'merge':
         return mergePdfs(_inputs, password: password);
       case 'extract':
@@ -378,9 +377,9 @@ class _ToolScreenState extends State<ToolScreen> {
           password,
         ];
       case 'annotate':
-        return _annotateOptions(context);
+        return _annotateOptions(context, password);
       case 'redact':
-        return _redactOptions(context);
+        return _redactOptions(context, password);
       case 'decrypt':
         return [password];
       case 'metadata':
@@ -414,7 +413,7 @@ class _ToolScreenState extends State<ToolScreen> {
     );
   }
 
-  List<Widget> _annotateOptions(BuildContext context) {
+  List<Widget> _annotateOptions(BuildContext context, String? password) {
     final scheme = Theme.of(context).colorScheme;
     return [
       SegmentedButton<AnnotationType>(
@@ -427,10 +426,6 @@ class _ToolScreenState extends State<ToolScreen> {
               value: AnnotationType.image,
               label: Text('Gambar'),
               icon: Icon(Icons.image)),
-          ButtonSegment(
-              value: AnnotationType.freehand,
-              label: Text('Garis'),
-              icon: Icon(Icons.brush)),
         ],
         selected: {AnnotationType.text},
         onSelectionChanged: (s) {},
@@ -457,8 +452,8 @@ class _ToolScreenState extends State<ToolScreen> {
                 final res = await FilePickerPlatform.instance.pickFiles(
                   type: FileType.image,
                 );
-                if (res != null && res.files.single.path != null) {
-                  final bytes = await File(res.files.single.path!).readAsBytes();
+                if (res != null && res.isNotEmpty && res.single.path != null) {
+                  final bytes = await File(res.single.path!).readAsBytes();
                   setState(() => _annotateImageBytes = Uint8List.fromList(bytes));
                 }
               },
@@ -476,12 +471,11 @@ class _ToolScreenState extends State<ToolScreen> {
       const SizedBox(height: 12),
       FilledButton.icon(
         onPressed: () {
-          if (_annotateTextCtrl.text.isEmpty && _annotateImageBytes == null && _freehandPoints.isEmpty) return;
+          if (_annotateTextCtrl.text.isEmpty && _annotateImageBytes == null) return;
           setState(() {
             _annotations.add(AnnotationItem(
               page: 1,
-              type: _annotateTextCtrl.text.isNotEmpty ? AnnotationType.text :
-                  _annotateImageBytes != null ? AnnotationType.image : AnnotationType.freehand,
+              type: _annotateTextCtrl.text.isNotEmpty ? AnnotationType.text : AnnotationType.image,
               x: _annotateX,
               y: _annotateY,
               text: _annotateTextCtrl.text.isNotEmpty ? _annotateTextCtrl.text : null,
@@ -490,12 +484,9 @@ class _ToolScreenState extends State<ToolScreen> {
               imageBytes: _annotateImageBytes,
               width: _annotateImageBytes != null ? 200 : null,
               height: _annotateImageBytes != null ? 200 : null,
-              points: _freehandPoints.isNotEmpty ? List.from(_freehandPoints) : null,
-              strokeWidth: 2.0,
             ));
             _annotateTextCtrl.clear();
             _annotateImageBytes = null;
-            _freehandPoints.clear();
           });
         },
         icon: const Icon(Icons.add),
@@ -505,11 +496,20 @@ class _ToolScreenState extends State<ToolScreen> {
           (v) => setState(() => _dpi = v.round())),
       _slider('Kualitas JPEG', '$_quality%', 30, 95, _quality,
           (v) => setState(() => _quality = v.round())),
-      password,
+      password != null
+          ? TextField(
+              controller: _passwordCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Sandi (opsional)',
+                prefixIcon: Icon(Icons.password),
+              ),
+            )
+          : const SizedBox.shrink(),
     ];
   }
 
-  List<Widget> _redactOptions(BuildContext context) {
+  List<Widget> _redactOptions(BuildContext context, String? password) {
     return [
       Text('Tambah area redaction (kotak hitam permanen):',
           style: TextStyle(fontWeight: FontWeight.w600)),
@@ -545,7 +545,16 @@ class _ToolScreenState extends State<ToolScreen> {
           (v) => setState(() => _dpi = v.round())),
       _slider('Kualitas JPEG', '$_quality%', 30, 95, _quality,
           (v) => setState(() => _quality = v.round())),
-      password,
+      password != null
+          ? TextField(
+              controller: _passwordCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Sandi (opsional)',
+                prefixIcon: Icon(Icons.password),
+              ),
+            )
+          : const SizedBox.shrink(),
     ];
   }
 
