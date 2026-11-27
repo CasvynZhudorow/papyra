@@ -82,8 +82,30 @@ jobs:
           # Override flutter.compileSdkVersion for plugins
           echo "flutter.compileSdkVersion=36" > android/local.properties
           echo "org.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=512m" >> android/gradle.properties
-          # Add PDF intent filter to AndroidManifest.xml
-          sed -i '/<activity/a\            <intent-filter>\n                <action android:name="android.intent.action.VIEW" />\n                <category android:name="android.intent.category.DEFAULT" />\n                <category android:name="android.intent.category.BROWSABLE" />\n                <data android:mimeType="application/pdf" />\n                <data android:scheme="content" />\n                <data android:scheme="file" />\n            </intent-filter>' android/app/src/main/AndroidManifest.xml
+          # Add PDF intent filter to AndroidManifest.xml using Python for proper XML handling
+          python3 << 'EOF'
+import xml.etree.ElementTree as ET
+manifest_path = 'android/app/src/main/AndroidManifest.xml'
+tree = ET.parse(manifest_path)
+root = tree.getroot()
+# Find the activity element
+for activity in root.iter('activity'):
+    # Add intent-filter for PDF viewing
+    intent_filter = ET.SubElement(activity, 'intent-filter')
+    action = ET.SubElement(intent_filter, 'action')
+    action.set('{http://schemas.android.com/apk/res/android}name', 'android.intent.action.VIEW')
+    cat_default = ET.SubElement(intent_filter, 'category')
+    cat_default.set('{http://schemas.android.com/apk/res/android}name', 'android.intent.category.DEFAULT')
+    cat_browsable = ET.SubElement(intent_filter, 'category')
+    cat_browsable.set('{http://schemas.android.com/apk/res/android}name', 'android.intent.category.BROWSABLE')
+    data_mime = ET.SubElement(intent_filter, 'data')
+    data_mime.set('{http://schemas.android.com/apk/res/android}mimeType', 'application/pdf')
+    data_content = ET.SubElement(intent_filter, 'data')
+    data_content.set('{http://schemas.android.com/apk/res/android}scheme', 'content')
+    data_file = ET.SubElement(intent_filter, 'data')
+    data_file.set('{http://schemas.android.com/apk/res/android}scheme', 'file')
+tree.write(manifest_path, encoding='utf-8', xml_declaration=True)
+EOF
       - run: flutter clean
       - run: flutter pub get
       - run: dart run flutter_launcher_icons
