@@ -84,26 +84,25 @@ jobs:
           echo "org.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=512m" >> android/gradle.properties
       - name: Add PDF intent filter to AndroidManifest.xml
         run: |
-          printf 'import xml.etree.ElementTree as ET
-manifest_path = "android/app/src/main/AndroidManifest.xml"
-tree = ET.parse(manifest_path)
-root = tree.getroot()
-for activity in root.iter("activity"):
-    intent_filter = ET.SubElement(activity, "intent-filter")
-    action = ET.SubElement(intent_filter, "action")
-    action.set("{http://schemas.android.com/apk/res/android}name", "android.intent.action.VIEW")
-    cat_default = ET.SubElement(intent_filter, "category")
-    cat_default.set("{http://schemas.android.com/apk/res/android}name", "android.intent.category.DEFAULT")
-    cat_browsable = ET.SubElement(intent_filter, "category")
-    cat_browsable.set("{http://schemas.android.com/apk/res/android}name", "android.intent.category.BROWSABLE")
-    data_mime = ET.SubElement(intent_filter, "data")
-    data_mime.set("{http://schemas.android.com/apk/res/android}mimeType", "application/pdf")
-    data_content = ET.SubElement(intent_filter, "data")
-    data_content.set("{http://schemas.android.com/apk/res/android}scheme", "content")
-    data_file = ET.SubElement(intent_filter, "data")
-    data_file.set("{http://schemas.android.com/apk/res/android}scheme", "file")
-tree.write(manifest_path, encoding="utf-8", xml_declaration=True)
-' > /tmp/add_intent.py
+          echo 'import xml.etree.ElementTree as ET' > /tmp/add_intent.py
+          echo 'manifest_path = "android/app/src/main/AndroidManifest.xml"' >> /tmp/add_intent.py
+          echo 'tree = ET.parse(manifest_path)' >> /tmp/add_intent.py
+          echo 'root = tree.getroot()' >> /tmp/add_intent.py
+          echo 'for activity in root.iter("activity"):' >> /tmp/add_intent.py
+          echo '    intent_filter = ET.SubElement(activity, "intent-filter")' >> /tmp/add_intent.py
+          echo '    action = ET.SubElement(intent_filter, "action")' >> /tmp/add_intent.py
+          echo '    action.set("{http://schemas.android.com/apk/res/android}name", "android.intent.action.VIEW")' >> /tmp/add_intent.py
+          echo '    cat_default = ET.SubElement(intent_filter, "category")' >> /tmp/add_intent.py
+          echo '    cat_default.set("{http://schemas.android.com/apk/res/android}name", "android.intent.category.DEFAULT")' >> /tmp/add_intent.py
+          echo '    cat_browsable = ET.SubElement(intent_filter, "category")' >> /tmp/add_intent.py
+          echo '    cat_browsable.set("{http://schemas.android.com/apk/res/android}name", "android.intent.category.BROWSABLE")' >> /tmp/add_intent.py
+          echo '    data_mime = ET.SubElement(intent_filter, "data")' >> /tmp/add_intent.py
+          echo '    data_mime.set("{http://schemas.android.com/apk/res/android}mimeType", "application/pdf")' >> /tmp/add_intent.py
+          echo '    data_content = ET.SubElement(intent_filter, "data")' >> /tmp/add_intent.py
+          echo '    data_content.set("{http://schemas.android.com/apk/res/android}scheme", "content")' >> /tmp/add_intent.py
+          echo '    data_file = ET.SubElement(intent_filter, "data")' >> /tmp/add_intent.py
+          echo '    data_file.set("{http://schemas.android.com/apk/res/android}scheme", "file")' >> /tmp/add_intent.py
+          echo 'tree.write(manifest_path, encoding="utf-8", xml_declaration=True)' >> /tmp/add_intent.py
           python3 /tmp/add_intent.py
       - run: flutter clean
       - run: flutter pub get
