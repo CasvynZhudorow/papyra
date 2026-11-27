@@ -84,17 +84,18 @@ jobs:
           echo "org.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=512m" >> android/gradle.properties
       - name: Add PDF intent filter to AndroidManifest.xml
         run: |
-          awk -v intent_filter='            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:mimeType="application/pdf" />
-                <data android:scheme="content" />
-                <data android:scheme="file" />
-            </intent-filter>' '
-/<activity / { print; print intent_filter; next }
-{ print }
-' android/app/src/main/AndroidManifest.xml > /tmp/AndroidManifest.xml.new && mv /tmp/AndroidManifest.xml.new android/app/src/main/AndroidManifest.xml
+          cat > /tmp/intent_filter.sed << 'SEDEOF'
+/<activity /a\
+            <intent-filter>\
+                <action android:name="android.intent.action.VIEW" />\
+                <category android:name="android.intent.category.DEFAULT" />\
+                <category android:name="android.intent.category.BROWSABLE" />\
+                <data android:mimeType="application/pdf" />\
+                <data android:scheme="content" />\
+                <data android:scheme="file" />\
+            </intent-filter>
+SEDEOF
+          sed -i -f /tmp/intent_filter.sed android/app/src/main/AndroidManifest.xml
       - run: flutter clean
       - run: flutter pub get
       - run: dart run flutter_launcher_icons
