@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 
 import '../models/tool_def.dart';
+import '../services/recent_store.dart';
 import '../theme.dart';
 import 'tool_screen.dart';
 import 'viewer_screen.dart';
@@ -15,6 +16,35 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String _query = '';
+  List<RecentFile> _recent = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecent();
+  }
+
+  Future<void> _loadRecent() async {
+    final r = await RecentStore.load();
+    if (mounted) setState(() => _recent = r);
+  }
+
+  Future<void> _openPath(String path) async {
+    await RecentStore.add(path);
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ViewerScreen(path: path)),
+    );
+    await _loadRecent();
+  }
+
+  Future<void> _pickAndOpen() async {
+    final res = await FilePickerPlatform.instance.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+    );
+    if (res.files.isEmpty) return;
+    await _openPath(res.files.single.path!);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +59,11 @@ class _HomeScreenState extends State<HomeScreen> {
       body: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(child: _header(context)),
+          SliverToBoxAdapter(child: _openCard(context)),
+          if (_recent.isNotEmpty) ...[
+            SliverToBoxAdapter(child: _recentHeader(context)),
+            SliverToBoxAdapter(child: _recentList(context)),
+          ],
           SliverToBoxAdapter(child: _search(context)),
           SliverToBoxAdapter(child: _categories(context)),
           SliverPadding(
@@ -41,7 +76,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 childAspectRatio: 1.28,
               ),
               delegate: SliverChildBuilderDelegate(
-                (context, i) => _ToolCard(tool: tools[i]),
+                (context, i) => _ToolCard(
+                  tool: tools[i],
+                  onOpenPicker: _pickAndOpen,
+                ),
                 childCount: tools.length,
               ),
             ),
@@ -110,6 +148,115 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _openCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      scheme.primary.withValues(alpha: 0.18),
+                      scheme.primary.withValues(alpha: 0.06),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(Icons.menu_book_outlined,
+                    color: scheme.primary, size: 26),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Buka PDF',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text('Penampil lengkap: cari teks, pratinjau halaman, zoom',
+                        style: TextStyle(
+                            fontSize: 12, color: scheme.onSurfaceVariant)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: _pickAndOpen,
+                child: const Text('Pilih'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _recentHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+      child: Row(
+        children: [
+          Text('Terakhir dibuka',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w700)),
+          const Spacer(),
+          TextButton(
+            onPressed: () async {
+              await RecentStore.clear();
+              await _loadRecent();
+            },
+            child: const Text('Hapus semua'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _recentList(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+      child: Card(
+        child: Column(
+          children: [
+            for (final r in _recent)
+              ListTile(
+                leading: Icon(Icons.picture_as_pdf_outlined,
+                    color: scheme.primary),
+                title: Text(r.name,
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text(
+                    '${r.openedAt.day}/${r.openedAt.month}/${r.openedAt.year}'),
+                onTap: () => _openPath(r.path),
+                trailing: IconButton(
+                  tooltip: 'Hapus dari daftar',
+                  icon: const Icon(Icons.close),
+                  onPressed: () async {
+                    await RecentStore.remove(r.path);
+                    await _loadRecent();
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _search(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -155,8 +302,9 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _ToolCard extends StatelessWidget {
-  const _ToolCard({required this.tool});
+  const _ToolCard({required this.tool, required this.onOpenPicker});
   final ToolDef tool;
+  final Future<void> Function() onOpenPicker;
 
   @override
   Widget build(BuildContext context) {
@@ -166,11 +314,7 @@ class _ToolCard extends StatelessWidget {
       child: InkWell(
         onTap: () {
           if (tool.isOpener) {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const _OpenPdfScreen(),
-              ),
-            );
+            onOpenPicker();
           } else {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => ToolScreen(tool: tool)),
@@ -233,85 +377,6 @@ class _Footer extends StatelessWidget {
         textAlign: TextAlign.center,
         style: TextStyle(
             fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
-      ),
-    );
-  }
-}
-
-class _OpenPdfScreen extends StatefulWidget {
-  const _OpenPdfScreen();
-
-  @override
-  State<_OpenPdfScreen> createState() => _OpenPdfScreenState();
-}
-
-class _OpenPdfScreenState extends State<_OpenPdfScreen> {
-  bool _picking = false;
-
-  Future<void> _pickAndOpen() async {
-    setState(() => _picking = true);
-    try {
-      final res = await FilePickerPlatform.instance.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf'],
-      );
-      if (res.isNotEmpty && res.single.path != null) {
-        if (!mounted) return;
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ViewerScreen(path: res.single.path!),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _picking = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Buka PDF')),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.menu_book_outlined, size: 80, color: scheme.primary),
-              const SizedBox(height: 24),
-              Text(
-                'Buka File PDF',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Pilih file PDF dari perangkat untuk dibuka di penampil.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: scheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: 32),
-              FilledButton.icon(
-                onPressed: _picking ? null : _pickAndOpen,
-                icon: _picking
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.folder_open),
-                label: Text(_picking ? 'Memilih...' : 'Pilih PDF'),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                  textStyle: const TextStyle(fontSize: 16),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

@@ -536,6 +536,61 @@ Future<String> extractText(String path, {String? password}) async {
   return buffer.toString();
 }
 
+/// Render one page to PNG bytes — used for the viewer's thumbnail rail.
+Future<Uint8List?> renderThumbnail(
+  String path,
+  int page, {
+  String? password,
+  double width = 140,
+}) async {
+  final doc = await _open(path, password: password);
+  try {
+    if (page < 1 || page > doc.pages.length) return null;
+    final p = doc.pages[page - 1];
+    final image = await p.render(
+      fullWidth: width,
+      fullHeight: p.height * (width / p.width),
+    );
+    if (image == null) return null;
+    final bytes = img.encodePng(image.createImageNF());
+    image.dispose();
+    return bytes;
+  } finally {
+    await doc.dispose();
+  }
+}
+
+/// Page numbers whose text contains [query] (case-insensitive), with a snippet.
+Future<List<({int page, String snippet})>> searchPdf(
+  String path,
+  String query, {
+  String? password,
+}) async {
+  final needle = query.trim().toLowerCase();
+  if (needle.isEmpty) return const [];
+  final doc = await _open(path, password: password);
+  final hits = <({int page, String snippet})>[];
+  try {
+    for (var i = 0; i < doc.pages.length; i++) {
+      final text = await doc.pages[i].loadText();
+      final full = text?.fullText ?? '';
+      final at = full.toLowerCase().indexOf(needle);
+      if (at < 0) continue;
+      final start = at > 40 ? at - 40 : 0;
+      final end = at + needle.length + 40 < full.length
+          ? at + needle.length + 40
+          : full.length;
+      hits.add((
+        page: i + 1,
+        snippet: full.substring(start, end).replaceAll('\n', ' ').trim(),
+      ));
+    }
+  } finally {
+    await doc.dispose();
+  }
+  return hits;
+}
+
 /// Annotation types for PDF editing.
 enum AnnotationType { text, image }
 
