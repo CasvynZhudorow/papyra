@@ -13,9 +13,10 @@ void main() {
 
     test('reopening moves path to front without duplicating', () {
       final all = [RecentFile('/a.pdf', t0), RecentFile('/b.pdf', t0)];
-      final merged = RecentStore.merge(all, '/a.pdf', t0.add(hours: 1));
+      final later = t0.add(const Duration(hours: 1));
+      final merged = RecentStore.merge(all, '/a.pdf', later);
       expect(merged.map((r) => r.path), ['/a.pdf', '/b.pdf']);
-      expect(merged.first.openedAt, t0.add(hours: 1));
+      expect(merged.first.openedAt, later);
     });
 
     test('json round trip', () {

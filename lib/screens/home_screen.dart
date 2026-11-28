@@ -31,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _openPath(String path) async {
     await RecentStore.add(path);
+    if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => ViewerScreen(path: path)),
     );
@@ -42,8 +43,8 @@ class _HomeScreenState extends State<HomeScreen> {
       type: FileType.custom,
       allowedExtensions: ['pdf'],
     );
-    if (res.files.isEmpty) return;
-    await _openPath(res.files.single.path!);
+    if (res.isEmpty) return;
+    await _openPath(res.single.path!);
   }
 
   @override
